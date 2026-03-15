@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "universal-spec-mcp"
+version = "1.0.0"
+description = "A universal spec-driven engineering MCP server for AI coding assistants (Cursor, Windsurf, Copilot, Bob, Cline)."
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+universal-spec-mcp = "universal_spec_mcp.server:mcp.run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/universal_spec_mcp"]

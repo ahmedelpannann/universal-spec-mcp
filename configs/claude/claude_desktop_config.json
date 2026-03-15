@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "universal-spec-architect": {
+      "command": "uvx",
+      "args": [
+        "fastmcp",
+        "run",
+        "src/universal_spec_mcp/server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "bob-spec-architect": {
+      "command": "uvx",
+      "args": [
+        "fastmcp",
+        "run",
+        "src/bob_spec_mcp/server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "src"
+      },
+      "timeout": 300
+    }
+  }
+}

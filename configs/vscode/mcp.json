@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "universal-spec-architect": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "fastmcp",
+        "run",
+        "src/universal_spec_mcp/server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}
