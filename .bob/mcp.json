@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "bob-spec-architect": {
+    "universal-spec-architect": {
       "command": "uvx",
       "args": [
         "fastmcp",
         "run",
-        "src/bob_spec_mcp/server.py"
+        "src/universal_spec_mcp/server.py"
       ],
       "env": {
         "PYTHONPATH": "src"

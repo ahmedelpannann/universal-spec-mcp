@@ -51,6 +51,9 @@ class TasksDoc(BaseModel):
 
 def get_spec_dir(feature_name: str) -> Path:
     """Get the directory for a specific feature spec."""
+    # FIX [INIT-04]: Reject empty feature names — previously created a spec at .specs/ root
+    if not feature_name or not feature_name.strip():
+        raise ValueError("feature_name cannot be empty")
     spec_dir = SPECS_DIR / feature_name
     spec_dir.mkdir(parents=True, exist_ok=True)
     return spec_dir
@@ -101,6 +104,16 @@ def write_requirements(feature_name: str, requirements_data: RequirementsDoc) ->
     if violations:
         error_msg = "Validation Failed: Requirements must use strict EARS notation.\n" + "\n".join(violations)
         return error_msg
+
+    # FIX [REQ-02]: Detect duplicate requirement IDs before writing
+    seen_ids = set()
+    dup_ids = []
+    for req in requirements_data.requirements:
+        if req.id in seen_ids:
+            dup_ids.append(req.id)
+        seen_ids.add(req.id)
+    if dup_ids:
+        return f"Validation Failed: Duplicate requirement IDs found: {', '.join(dup_ids)}. Each requirement must have a unique ID."
         
     # Generate Markdown
     md_content = f"# Requirements: {requirements_data.feature_name}\n\n"
@@ -149,7 +162,27 @@ def write_tasks(feature_name: str, tasks_data: TasksDoc) -> str:
     This breaks the work down into discrete, trackable implementation steps.
     """
     spec_dir = get_spec_dir(feature_name)
-    
+
+    # FIX [TASK-02]: Detect duplicate task IDs before writing
+    seen_task_ids = set()
+    dup_task_ids = []
+    for task in tasks_data.tasks:
+        if task.id in seen_task_ids:
+            dup_task_ids.append(task.id)
+        seen_task_ids.add(task.id)
+    if dup_task_ids:
+        return f"Validation Failed: Duplicate task IDs found: {', '.join(dup_task_ids)}. Each task must have a unique ID."
+
+    # FIX [TASK-01]: Validate that all dependency references point to existing task IDs
+    all_task_ids = {task.id for task in tasks_data.tasks}
+    invalid_deps = []
+    for task in tasks_data.tasks:
+        for dep in task.dependencies:
+            if dep not in all_task_ids:
+                invalid_deps.append(f"{task.id} depends on unknown '{dep}'")
+    if invalid_deps:
+        return f"Validation Failed: Invalid task dependencies: {'; '.join(invalid_deps)}. All dependency IDs must reference tasks defined in this spec."
+
     # Generate Markdown
     md_content = f"# Implementation Tasks: {tasks_data.feature_name}\n\n"
     
@@ -169,9 +202,6 @@ def write_tasks(feature_name: str, tasks_data: TasksDoc) -> str:
         f.write(tasks_data.model_dump_json(indent=2))
         
     return f"Successfully wrote tasks.md for '{feature_name}'. Ready for implementation phase."
-
-if __name__ == "__main__":
-    mcp.run()
 
 @mcp.tool()
 def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"]) -> str:
@@ -237,3 +267,9 @@ def run_hook(hook_name: str, context: str = "") -> str:
         
     result = f"Hook '{hook_name}' executed successfully.\nAction: {hooks[hook_name]}\nContext: {context}"
     return result
+
+# NOTE: mcp.run() is placed here at the very end, AFTER all @mcp.tool() decorators
+# are registered. Previously it was placed before update_task_status and run_hook,
+# which caused those 2 tools to be invisible to MCP clients (only 4/6 tools worked).
+if __name__ == "__main__":
+    mcp.run()
