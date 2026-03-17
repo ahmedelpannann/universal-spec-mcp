@@ -68,11 +68,15 @@ def validate_ears(statement: str) -> bool:
 # --- MCP Tools ---
 
 @mcp.tool()
-def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-first", "design-first"] = "requirements-first") -> str:
+def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-first", "design-first"] = "requirements-first", **kwargs) -> str:
     """
     Initialize a new feature specification directory.
     This is the first step in the spec-driven workflow.
     """
+    # FIX [INIT-05]: Accept and ignore extra parameters (e.g., task_progress)
+    # that AI assistants may send beyond the defined signature.
+    if kwargs:
+        pass  # Silently ignore unexpected parameters like task_progress
     spec_dir = get_spec_dir(feature_name)
     
     # Create a metadata file to track the workflow
@@ -88,7 +92,7 @@ def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-f
     return f"Successfully initialized spec for '{feature_name}' using {workflow_variant} workflow at {spec_dir}. Next step: generate requirements.md or design.md depending on the workflow."
 
 @mcp.tool()
-def write_requirements(feature_name: str, requirements_data: RequirementsDoc) -> str:
+def write_requirements(feature_name: str, requirements_data: RequirementsDoc, **kwargs) -> str:
     """
     Write the requirements.md file. 
     Enforces EARS notation for all requirements. If EARS is violated, this tool will return an error.
@@ -137,7 +141,7 @@ def write_requirements(feature_name: str, requirements_data: RequirementsDoc) ->
     return f"Successfully wrote requirements.md for '{feature_name}'. All requirements passed EARS validation."
 
 @mcp.tool()
-def write_design(feature_name: str, design_data: DesignDoc) -> str:
+def write_design(feature_name: str, design_data: DesignDoc, **kwargs) -> str:
     """
     Write the design.md file based on the requirements.
     """
@@ -156,7 +160,7 @@ def write_design(feature_name: str, design_data: DesignDoc) -> str:
     return f"Successfully wrote design.md for '{feature_name}'."
 
 @mcp.tool()
-def write_tasks(feature_name: str, tasks_data: TasksDoc) -> str:
+def write_tasks(feature_name: str, tasks_data: TasksDoc, **kwargs) -> str:
     """
     Write the tasks.md file based on the design.
     This breaks the work down into discrete, trackable implementation steps.
@@ -204,7 +208,7 @@ def write_tasks(feature_name: str, tasks_data: TasksDoc) -> str:
     return f"Successfully wrote tasks.md for '{feature_name}'. Ready for implementation phase."
 
 @mcp.tool()
-def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"]) -> str:
+def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"], **kwargs) -> str:
     """
     Update the status of a specific task in the tasks.md file.
     Use this to track implementation progress in real-time.
@@ -248,7 +252,7 @@ def update_task_status(feature_name: str, task_id: str, new_status: Literal["tod
     return f"Successfully updated task '{task_id}' to status '{new_status}'."
 
 @mcp.tool()
-def run_hook(hook_name: str, context: str = "") -> str:
+def run_hook(hook_name: str, context: str = "", **kwargs) -> str:
     """
     Simulate spec-driven Agent Hooks.
     Triggers predefined actions based on events (e.g., 'pre_task', 'post_task', 'post_save').
