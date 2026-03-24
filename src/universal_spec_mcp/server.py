@@ -3,9 +3,12 @@ import re
 import sys
 import os
 from pathlib import Path
-from typing import List, Optional, Literal
+from typing import Any, List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 from fastmcp import FastMCP
+from fastmcp.server.middleware.middleware import Middleware, MiddlewareContext, CallNext
+import mcp.types as _mcp_types
+from fastmcp.tools.tool import ToolResult as _ToolResult
 
 # Allow running directly with `python server.py` as well as via package mode
 _this_dir = Path(__file__).parent
@@ -21,8 +24,44 @@ except ImportError:
     from directive_store import DirectiveStore
     from memory_store import MemoryStore
 
+# --- Middleware: strip extra arguments sent by LLMs (e.g. Cline sends 'task_progress') ---
+class ExtraArgStripMiddleware(Middleware):
+    """Silently discard any arguments that are not declared in the tool's input schema.
+    
+    Some LLM clients (e.g. Cline) inject extra fields such as 'task_progress' into
+    every tool call. Pydantic's TypeAdapter raises a ValidationError for these unknown
+    fields. This middleware filters them out before the call reaches the tool function.
+    """
+    async def on_call_tool(
+        self,
+        context: MiddlewareContext[_mcp_types.CallToolRequestParams],
+        call_next: CallNext[_mcp_types.CallToolRequestParams, _ToolResult],
+    ) -> _ToolResult:
+        if context.fastmcp_context and context.message.arguments:
+            server = context.fastmcp_context.fastmcp
+            if server is not None:
+                try:
+                    tool = await server.get_tool(context.message.name)
+                    if tool is not None:
+                        schema = tool.parameters or {}
+                        known_keys = set(schema.get("properties", {}).keys())
+                        if known_keys:
+                            filtered = {
+                                k: v for k, v in context.message.arguments.items()
+                                if k in known_keys
+                            }
+                            context = context.copy(
+                                message=_mcp_types.CallToolRequestParams(
+                                    name=context.message.name,
+                                    arguments=filtered,
+                                )
+                            )
+                except Exception:
+                    pass  # If anything fails, pass through unmodified
+        return await call_next(context)
+
 # Initialize the MCP server
-mcp = FastMCP("Universal Spec Architect")
+mcp = FastMCP("Universal Spec Architect", middleware=[ExtraArgStripMiddleware()])
 
 # Base directory for all specs
 SPECS_DIR = Path(".specs")
