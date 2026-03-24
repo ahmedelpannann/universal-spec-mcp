@@ -45,17 +45,21 @@ class ExtraArgStripMiddleware(Middleware):
                     if tool is not None:
                         schema = tool.parameters or {}
                         known_keys = set(schema.get("properties", {}).keys())
-                        if known_keys:
-                            filtered = {
-                                k: v for k, v in context.message.arguments.items()
-                                if k in known_keys
-                            }
-                            context = context.copy(
-                                message=_mcp_types.CallToolRequestParams(
-                                    name=context.message.name,
-                                    arguments=filtered,
-                                )
+                        # Always filter: keep only declared params.
+                        # For zero-param tools (known_keys is empty), this
+                        # produces an empty dict, discarding all extra args
+                        # (e.g. Cline's 'task_progress') that would otherwise
+                        # cause a Pydantic validation error.
+                        filtered = {
+                            k: v for k, v in context.message.arguments.items()
+                            if k in known_keys
+                        }
+                        context = context.copy(
+                            message=_mcp_types.CallToolRequestParams(
+                                name=context.message.name,
+                                arguments=filtered,
                             )
+                        )
                 except Exception:
                     pass  # If anything fails, pass through unmodified
         return await call_next(context)
