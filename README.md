@@ -101,6 +101,21 @@ pip install -e .
 
 ---
 
+## Built-in Security: Privacy Filter
+
+The server includes a built-in **Privacy Filter** that automatically scrubs sensitive data from all AI-generated content *before* it is written to the `.specs/` directory. This prevents the assistant from accidentally leaking credentials into your project's git repository.
+
+It automatically detects and redacts:
+- AWS Access and Secret Keys
+- GitHub Tokens
+- OpenAI and Anthropic API Keys
+- Generic API Keys and Bearer Tokens
+- Passwords and SSH Private Keys
+- Database Connection Strings
+- Internal IP Addresses
+
+---
+
 ## Running Tests
 
 ```bash

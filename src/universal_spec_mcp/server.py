@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
+from .privacy import privacy_filter
 
 # Initialize the MCP server
 mcp = FastMCP("Universal Spec Architect")
@@ -131,14 +132,21 @@ def write_requirements(feature_name: str, requirements_data: RequirementsDoc, **
             md_content += f"- {ac}\n"
         md_content += "\n"
         
+    # Scrub sensitive data before writing
+    scrubbed_md, md_result = privacy_filter.scrub(md_content)
+    scrubbed_json, json_result = privacy_filter.scrub(requirements_data.model_dump_json(indent=2))
+    
     with open(spec_dir / "requirements.md", "w") as f:
-        f.write(md_content)
+        f.write(scrubbed_md)
         
     # Save raw JSON for programmatic access later
     with open(spec_dir / "requirements.json", "w") as f:
-        f.write(requirements_data.model_dump_json(indent=2))
+        f.write(scrubbed_json)
         
-    return f"Successfully wrote requirements.md for '{feature_name}'. All requirements passed EARS validation."
+    msg = f"Successfully wrote requirements.md for '{feature_name}'. All requirements passed EARS validation."
+    if md_result.redactions > 0:
+        msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+    return msg
 
 @mcp.tool()
 def write_design(feature_name: str, design_data: DesignDoc, **kwargs) -> str:
@@ -154,10 +162,16 @@ def write_design(feature_name: str, design_data: DesignDoc, **kwargs) -> str:
         md_content += f"## {section.title}\n\n"
         md_content += f"{section.content}\n\n"
         
+    # Scrub sensitive data before writing
+    scrubbed_md, md_result = privacy_filter.scrub(md_content)
+    
     with open(spec_dir / "design.md", "w") as f:
-        f.write(md_content)
+        f.write(scrubbed_md)
         
-    return f"Successfully wrote design.md for '{feature_name}'."
+    msg = f"Successfully wrote design.md for '{feature_name}'."
+    if md_result.redactions > 0:
+        msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+    return msg
 
 @mcp.tool()
 def write_tasks(feature_name: str, tasks_data: TasksDoc, **kwargs) -> str:
@@ -198,14 +212,21 @@ def write_tasks(feature_name: str, tasks_data: TasksDoc, **kwargs) -> str:
         if task.dependencies:
             md_content += f"**Dependencies:** {', '.join(task.dependencies)}\n\n"
             
+    # Scrub sensitive data before writing
+    scrubbed_md, md_result = privacy_filter.scrub(md_content)
+    scrubbed_json, json_result = privacy_filter.scrub(tasks_data.model_dump_json(indent=2))
+    
     with open(spec_dir / "tasks.md", "w") as f:
-        f.write(md_content)
+        f.write(scrubbed_md)
         
     # Save raw JSON for programmatic tracking
     with open(spec_dir / "tasks.json", "w") as f:
-        f.write(tasks_data.model_dump_json(indent=2))
+        f.write(scrubbed_json)
         
-    return f"Successfully wrote tasks.md for '{feature_name}'. Ready for implementation phase."
+    msg = f"Successfully wrote tasks.md for '{feature_name}'. Ready for implementation phase."
+    if md_result.redactions > 0:
+        msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+    return msg
 
 @mcp.tool()
 def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"], **kwargs) -> str:
