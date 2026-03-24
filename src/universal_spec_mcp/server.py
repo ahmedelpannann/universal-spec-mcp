@@ -1,13 +1,25 @@
-import os
 import json
 import re
+import sys
+import os
 from pathlib import Path
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
-from .privacy import privacy_filter
-from .directive_store import DirectiveStore
-from .memory_store import MemoryStore
+
+# Allow running directly with `python server.py` as well as via package mode
+_this_dir = Path(__file__).parent
+if str(_this_dir) not in sys.path:
+    sys.path.insert(0, str(_this_dir))
+
+try:
+    from .privacy import privacy_filter
+    from .directive_store import DirectiveStore
+    from .memory_store import MemoryStore
+except ImportError:
+    from privacy import privacy_filter
+    from directive_store import DirectiveStore
+    from memory_store import MemoryStore
 
 # Initialize the MCP server
 mcp = FastMCP("Universal Spec Architect")
