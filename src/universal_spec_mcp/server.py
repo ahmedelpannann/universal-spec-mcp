@@ -4,7 +4,7 @@ import sys
 import os
 from pathlib import Path
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from fastmcp import FastMCP
 
 # Allow running directly with `python server.py` as well as via package mode
@@ -36,6 +36,7 @@ memory_store = MemoryStore(SPECS_DIR / ".system" / "memory.db")
 # --- Pydantic Models for Strict LLM Outputs ---
 
 class Requirement(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     id: str = Field(..., description="Unique identifier for the requirement, e.g., REQ-001")
     title: str = Field(..., description="Short title of the requirement")
     ears_statement: str = Field(
@@ -45,19 +46,23 @@ class Requirement(BaseModel):
     acceptance_criteria: List[str] = Field(..., description="List of testable acceptance criteria")
 
 class RequirementsDoc(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     feature_name: str
     description: str
     requirements: List[Requirement]
 
 class DesignSection(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     title: str = Field(..., description="Section title, e.g., Architecture, Data Models, Error Handling")
     content: str = Field(..., description="Markdown content for this section")
 
 class DesignDoc(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     feature_name: str
     sections: List[DesignSection]
 
 class Task(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     id: str = Field(..., description="Unique task identifier, e.g., TASK-001")
     title: str = Field(..., description="Task title")
     description: str = Field(..., description="Detailed implementation instructions")
@@ -65,6 +70,7 @@ class Task(BaseModel):
     dependencies: List[str] = Field(default_factory=list, description="List of task IDs this task depends on")
 
 class TasksDoc(BaseModel):
+    model_config = ConfigDict(extra='ignore')
     feature_name: str
     tasks: List[Task]
 
