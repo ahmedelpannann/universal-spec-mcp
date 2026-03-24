@@ -141,3 +141,9 @@ Every requirement must follow the Easy Approach to Requirements Syntax (EARS):
 ## Per-Assistant Setup
 
 See `SETUP_GUIDE.md` for detailed, step-by-step instructions for each supported assistant.
+
+---
+
+## Acknowledgements
+
+Context injection and compliance gate patterns inspired by [ElefanteAI/elefante](https://github.com/ElefanteAI/elefante) — a local-first persistent memory engine for AI agents. The Privacy Filter design is also informed by Elefante's approach to secret scrubbing before storage.
