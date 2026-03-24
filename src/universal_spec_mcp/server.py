@@ -6,12 +6,20 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 from .privacy import privacy_filter
+from .directive_store import DirectiveStore
+from .memory_store import MemoryStore
 
 # Initialize the MCP server
 mcp = FastMCP("Universal Spec Architect")
 
-# Base directory for specs
+# Base directory for all specs
 SPECS_DIR = Path(".specs")
+
+# Initialize DirectiveStore
+directive_store = DirectiveStore(SPECS_DIR / ".system")
+
+# Initialize MemoryStore
+memory_store = MemoryStore(SPECS_DIR / ".system" / "memory.db")
 
 # --- Pydantic Models for Strict LLM Outputs ---
 
@@ -67,17 +75,144 @@ def validate_ears(statement: str) -> bool:
     return bool(re.match(pattern, statement, re.IGNORECASE))
 
 # --- MCP Tools ---
+@mcp.tool()
+def add_memory(feature_name: str, category: str, content: str) -> str:
+    """
+    Store an architectural decision, pattern, or context for future reference.
+    Categories should be things like 'architecture', 'data_model', 'security', etc.
+    """
+    memory_id = memory_store.add_memory(feature_name, category, content)
+    return f"Successfully stored memory {memory_id} for feature '{feature_name}' in category '{category}'."
 
 @mcp.tool()
-def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-first", "design-first"] = "requirements-first", **kwargs) -> str:
+def search_memory(query: str) -> str:
+    """
+    Search the persistent memory store for past decisions, patterns, or context.
+    Use this to ensure consistency with previous features.
+    """
+    # SQLite FTS5 requires queries to be formatted properly, simple fallback for basic queries
+    # Replace spaces with AND for simple FTS matching
+    fts_query = " AND ".join(query.split())
+    
+    try:
+        results = memory_store.search_memories(fts_query)
+    except Exception:
+        # Fallback if FTS query syntax is invalid
+        try:
+            results = memory_store.search_memories(f'"{query}"')
+        except Exception:
+            return f"Failed to search memory with query: {query}"
+            
+    if not results:
+        return f"No memories found matching '{query}'."
+        
+    formatted_results = [f"Search results for '{query}':"]
+    for r in results:
+        formatted_results.append(f"- [{r['feature_name']} | {r['category']}] {r['content']}")
+        
+    return "\n".join(formatted_results)
+
+@mcp.tool()
+def add_directive(content: str) -> str:
+    """
+    Add a new persistent directive (rule) that will be injected into all future tool responses.
+    Use this to enforce project-wide constraints (e.g., "Always use PostgreSQL", "Never use relative imports").
+    """
+    directive_id = directive_store.add_directive(content)
+    return f"Successfully added directive {directive_id}: '{content}'"
+
+@mcp.tool()
+def list_directives() -> str:
+    """
+    List all active directives currently enforced in the project.
+    """
+    directives = directive_store.list_directives()
+    if not directives:
+        return "No active directives."
+    
+    result = "Active Directives:\n"
+    for d in directives:
+        status = "ACTIVE" if d.get("active", True) else "INACTIVE"
+        result += f"- [{d['id']}] ({status}) {d['content']}\n"
+    return result
+
+@mcp.tool()
+def list_specs() -> str:
+    """
+    List all existing feature specifications in the project.
+    Use this to discover what features have already been specced before creating a new one.
+    """
+    if not SPECS_DIR.exists():
+        return "No specifications found. The .specs directory does not exist yet."
+        
+    specs = []
+    for item in SPECS_DIR.iterdir():
+        if item.is_dir():
+            meta_path = item / "meta.json"
+            status = "unknown"
+            if meta_path.exists():
+                try:
+                    with open(meta_path, "r") as f:
+                        meta = json.load(f)
+                        status = meta.get("status", "unknown")
+                except Exception:
+                    pass
+            specs.append(f"- {item.name} (Status: {status})")
+            
+    if not specs:
+        return "No specifications found in the .specs directory."
+        
+    return "Existing specifications:\n" + "\n".join(specs)
+
+@mcp.tool()
+def search_specs(query: str) -> str:
+    """
+    Search across all existing specifications for a specific keyword or concept.
+    Use this to find related features or check if a requirement already exists.
+    """
+    if not SPECS_DIR.exists():
+        return "No specifications found to search."
+        
+    results = []
+    query_lower = query.lower()
+    
+    for spec_dir in SPECS_DIR.iterdir():
+        if not spec_dir.is_dir():
+            continue
+            
+        # Search in requirements.md
+        req_path = spec_dir / "requirements.md"
+        if req_path.exists():
+            try:
+                with open(req_path, "r") as f:
+                    content = f.read()
+                    if query_lower in content.lower():
+                        results.append(f"Match found in {spec_dir.name}/requirements.md")
+            except Exception:
+                pass
+                
+        # Search in design.md
+        design_path = spec_dir / "design.md"
+        if design_path.exists():
+            try:
+                with open(design_path, "r") as f:
+                    content = f.read()
+                    if query_lower in content.lower():
+                        results.append(f"Match found in {spec_dir.name}/design.md")
+            except Exception:
+                pass
+                
+    if not results:
+        return f"No matches found for '{query}' in any existing specifications."
+        
+    return f"Search results for '{query}':\n" + "\n".join(results)
+
+@mcp.tool()
+def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-first", "design-first"] = "requirements-first") -> str:
     """
     Initialize a new feature specification directory.
     This is the first step in the spec-driven workflow.
     """
-    # FIX [INIT-05]: Accept and ignore extra parameters (e.g., task_progress)
-    # that AI assistants may send beyond the defined signature.
-    if kwargs:
-        pass  # Silently ignore unexpected parameters like task_progress
     spec_dir = get_spec_dir(feature_name)
     
     # Create a metadata file to track the workflow
@@ -93,7 +228,7 @@ def initialize_spec(feature_name: str, workflow_variant: Literal["requirements-f
     return f"Successfully initialized spec for '{feature_name}' using {workflow_variant} workflow at {spec_dir}. Next step: generate requirements.md or design.md depending on the workflow."
 
 @mcp.tool()
-def write_requirements(feature_name: str, requirements_data: RequirementsDoc, **kwargs) -> str:
+def write_requirements(feature_name: str, requirements_data: RequirementsDoc) -> str:
     """
     Write the requirements.md file. 
     Enforces EARS notation for all requirements. If EARS is violated, this tool will return an error.
@@ -146,10 +281,21 @@ def write_requirements(feature_name: str, requirements_data: RequirementsDoc, **
     msg = f"Successfully wrote requirements.md for '{feature_name}'. All requirements passed EARS validation."
     if md_result.redactions > 0:
         msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+        
+    # Inject directives
+    msg += directive_store.get_active_directives()
+    
+    # Inject relevant context from memory store
+    recent_memories = memory_store.get_recent_memories(limit=3)
+    if recent_memories:
+        msg += "\n\nRELEVANT CONTEXT (from past decisions):\n"
+        for m in recent_memories:
+            msg += f"- [{m['feature_name']} | {m['category']}] {m['content']}\n"
+            
     return msg
 
 @mcp.tool()
-def write_design(feature_name: str, design_data: DesignDoc, **kwargs) -> str:
+def write_design(feature_name: str, design_data: DesignDoc) -> str:
     """
     Write the design.md file based on the requirements.
     """
@@ -171,10 +317,21 @@ def write_design(feature_name: str, design_data: DesignDoc, **kwargs) -> str:
     msg = f"Successfully wrote design.md for '{feature_name}'."
     if md_result.redactions > 0:
         msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+        
+    # Inject directives
+    msg += directive_store.get_active_directives()
+    
+    # Inject relevant context from memory store
+    recent_memories = memory_store.get_recent_memories(limit=3)
+    if recent_memories:
+        msg += "\n\nRELEVANT CONTEXT (from past decisions):\n"
+        for m in recent_memories:
+            msg += f"- [{m['feature_name']} | {m['category']}] {m['content']}\n"
+            
     return msg
 
 @mcp.tool()
-def write_tasks(feature_name: str, tasks_data: TasksDoc, **kwargs) -> str:
+def write_tasks(feature_name: str, tasks_data: TasksDoc) -> str:
     """
     Write the tasks.md file based on the design.
     This breaks the work down into discrete, trackable implementation steps.
@@ -226,10 +383,21 @@ def write_tasks(feature_name: str, tasks_data: TasksDoc, **kwargs) -> str:
     msg = f"Successfully wrote tasks.md for '{feature_name}'. Ready for implementation phase."
     if md_result.redactions > 0:
         msg += f" (Privacy Filter redacted {md_result.redactions} sensitive items: {', '.join(md_result.redacted_types)})"
+        
+    # Inject directives
+    msg += directive_store.get_active_directives()
+    
+    # Inject relevant context from memory store
+    recent_memories = memory_store.get_recent_memories(limit=3)
+    if recent_memories:
+        msg += "\n\nRELEVANT CONTEXT (from past decisions):\n"
+        for m in recent_memories:
+            msg += f"- [{m['feature_name']} | {m['category']}] {m['content']}\n"
+            
     return msg
 
 @mcp.tool()
-def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"], **kwargs) -> str:
+def update_task_status(feature_name: str, task_id: str, new_status: Literal["todo", "in_progress", "completed"]) -> str:
     """
     Update the status of a specific task in the tasks.md file.
     Use this to track implementation progress in real-time.
@@ -273,7 +441,7 @@ def update_task_status(feature_name: str, task_id: str, new_status: Literal["tod
     return f"Successfully updated task '{task_id}' to status '{new_status}'."
 
 @mcp.tool()
-def run_hook(hook_name: str, context: str = "", **kwargs) -> str:
+def run_hook(hook_name: str, context: str = "") -> str:
     """
     Simulate spec-driven Agent Hooks.
     Triggers predefined actions based on events (e.g., 'pre_task', 'post_task', 'post_save').
