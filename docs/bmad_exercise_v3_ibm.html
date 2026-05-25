@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Universal Spec MCP — End-to-End Exercise</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --ibm-blue-60: #0f62fe;
+    --ibm-blue-80: #002d9c;
+    --ibm-blue-90: #001d6c;
+    --ibm-blue-20: #a6c8ff;
+    --ibm-blue-10: #edf5ff;
+    --ibm-teal-60: #009d9a;
+    --ibm-teal-10: #d9fbfb;
+    --ibm-purple-60: #8a3ffc;
+    --ibm-purple-10: #f6f2ff;
+    --ibm-green-60: #198038;
+    --ibm-green-10: #defbe6;
+    --ibm-red-60: #da1e28;
+    --ibm-gray-10: #f4f4f4;
+    --ibm-gray-20: #e0e0e0;
+    --ibm-gray-70: #525252;
+    --ibm-gray-100: #161616;
+    --ibm-orange-40: #ff832b;
+    --ibm-orange-10: #fff2e8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: var(--ibm-gray-100);
+  }
+
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+    @top-left { content: "UNIVERSAL SPEC MCP"; font-family: 'IBM Plex Sans', sans-serif; font-size: 7pt; font-weight: 600; color: var(--ibm-gray-70); letter-spacing: 1px; }
+    @top-right { content: string(section-title); font-family: 'IBM Plex Sans', sans-serif; font-size: 7pt; color: var(--ibm-gray-70); }
+    @bottom-right { content: counter(page); font-family: 'IBM Plex Sans', sans-serif; font-size: 7pt; color: var(--ibm-gray-70); }
+  }
+
+  @page :first { margin: 0; @top-left { content: none; } @top-right { content: none; } @bottom-right { content: none; } }
+
+  .section-title { string-set: section-title content(); }
+
+  /* ── COVER ── */
+  .cover {
+    width: 210mm; height: 297mm;
+    background: linear-gradient(135deg, var(--ibm-blue-90) 0%, var(--ibm-blue-60) 100%);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: white; text-align: center; padding: 40mm 30mm;
+    page-break-after: always;
+  }
+  .cover-tag { font-size: 9pt; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; margin-bottom: 16px; }
+  .cover h1 { font-size: 32pt; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .cover h2 { font-size: 14pt; font-weight: 400; opacity: 0.9; margin-bottom: 40px; }
+  .cover-meta { font-size: 9pt; opacity: 0.7; margin-top: auto; }
+
+  /* ── HEADINGS ── */
+  h2 { font-size: 16pt; font-weight: 700; color: var(--ibm-gray-100); margin: 20px 0 8px 0; border-bottom: 2px solid var(--ibm-blue-60); padding-bottom: 4px; }
+  h3 { font-size: 12pt; font-weight: 600; color: var(--ibm-gray-100); margin: 16px 0 6px 0; }
+  h4 { font-size: 10pt; font-weight: 600; color: var(--ibm-gray-70); margin: 12px 0 4px 0; }
+
+  p { margin: 6px 0; }
+
+  /* ── TABLES ── */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
+  th { background: var(--ibm-gray-10); font-weight: 600; text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--ibm-gray-20); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--ibm-gray-20); vertical-align: top; }
+
+  /* ── PHASE BANNER ── */
+  .phase-banner {
+    background: var(--ibm-blue-60); color: white; border-radius: 4px;
+    padding: 14px 20px; margin: 20px 0 16px 0;
+    page-break-inside: avoid;
+  }
+  .phase-banner .badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 3px; padding: 2px 10px; font-size: 8pt; font-weight: 600; letter-spacing: 1px; margin-bottom: 4px; }
+  .phase-banner h2 { font-size: 16pt; color: white; border: none; margin: 4px 0 2px 0; padding: 0; }
+  .phase-banner p { font-size: 9pt; opacity: 0.85; margin: 0; }
+
+  /* ── STEP CARDS ── */
+  .step-card {
+    border: 1px solid var(--ibm-gray-20); border-radius: 4px;
+    padding: 12px 16px; margin: 12px 0;
+    page-break-inside: avoid;
+  }
+  .step-label { font-size: 8pt; font-weight: 600; color: var(--ibm-blue-60); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+
+  /* ── DIALOGUE BOXES ── */
+  .dialogue { border-left: 4px solid; border-radius: 2px; padding: 10px 14px; margin: 8px 0; font-size: 9pt; page-break-inside: avoid; }
+  .dialogue-you { border-color: var(--ibm-blue-60); background: var(--ibm-blue-10); }
+  .dialogue-agent { border-color: var(--ibm-teal-60); background: var(--ibm-teal-10); }
+  .dialogue-mcp { border-color: var(--ibm-purple-60); background: var(--ibm-purple-10); }
+  .dialogue-note { border-color: var(--ibm-orange-40); background: var(--ibm-orange-10); }
+  .dialogue-label { font-size: 8pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .dialogue-you .dialogue-label { color: var(--ibm-blue-60); }
+  .dialogue-agent .dialogue-label { color: var(--ibm-teal-60); }
+  .dialogue-mcp .dialogue-label { color: var(--ibm-purple-60); }
+  .dialogue-note .dialogue-label { color: var(--ibm-orange-40); }
+
+  /* ── CODE BLOCKS ── */
+  pre { background: #1e1e1e; color: #d4d4d4; border-radius: 3px; padding: 10px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 8pt; line-height: 1.5; overflow-x: auto; margin: 6px 0; white-space: pre-wrap; word-wrap: break-word; }
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 8.5pt; background: var(--ibm-gray-10); padding: 1px 4px; border-radius: 2px; }
+
+  /* ── CALLOUT BOX ── */
+  .callout { background: var(--ibm-blue-10); border: 1px solid var(--ibm-blue-20); page-break-inside: avoid; border-radius: 2px; padding: 12px 16px; margin: 12px 0; font-size: 9pt; }
+  .callout h4 { color: var(--ibm-blue-60); margin: 0 0 6px 0; }
+
+  /* ── SETUP STEPS ── */
+  .setup-step { border: 1px solid var(--ibm-gray-20); border-radius: 4px; padding: 14px 16px; margin: 12px 0; page-break-inside: avoid; }
+  .setup-step-number { display: inline-block; background: var(--ibm-blue-60); color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 9pt; font-weight: 700; margin-right: 8px; }
+
+  /* ── LISTS ── */
+  ul, ol { margin: 6px 0 6px 20px; }
+  li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- COVER PAGE -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-tag">2026 IBM Consulting All-Developer ICA Bob-a-thon</div>
+  <h1>Universal Spec MCP<br>End-to-End Exercise</h1>
+  <h2>Making Bob Think Before It Codes</h2>
+  <div class="cover-meta">
+    <strong>Author:</strong> Ahmed Elpannann &nbsp;|&nbsp;
+    <strong>Version:</strong> 3.0 &nbsp;|&nbsp;
+    <strong>Date:</strong> May 2026
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SETUP & CONFIGURATION -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Setup &amp; Configuration</h2>
+
+<p>This section walks you through downloading, installing, and configuring the project from scratch. No prior experience with Python or MCP is required — just follow each step in order.</p>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">1</span> Download the Project</h3>
+  <p>Go to the GitHub repository in your web browser:</p>
+  <pre>https://github.ibm.com/Ahmed-Elpannann/Bob-A-Thon-2026-Spec-Driven</pre>
+  <p>Click the green <strong>"Code"</strong> button, then click <strong>"Download ZIP"</strong>. Save the file to your computer (e.g., your Desktop or Downloads folder).</p>
+  <p>Once downloaded, right-click the ZIP file and select <strong>"Extract All..."</strong> (Windows) or double-click it (Mac). This creates a folder called <code>Bob-A-Thon-2026-Spec-Driven-main</code>.</p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">2</span> Install Python (if not already installed)</h3>
+  <p>Open a terminal (Command Prompt on Windows, Terminal on Mac) and type:</p>
+  <pre>python --version</pre>
+  <p>If you see <code>Python 3.11</code> or higher, you are good. If not, download Python from:</p>
+  <pre>https://www.python.org/downloads/</pre>
+  <p><strong>Important:</strong> During installation on Windows, check the box that says <strong>"Add Python to PATH"</strong>.</p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">3</span> Install the Required Packages</h3>
+  <p>Open a terminal and navigate to the project folder you extracted:</p>
+  <pre>cd Desktop/Bob-A-Thon-2026-Spec-Driven-main</pre>
+  <p>Then install the dependencies:</p>
+  <pre>pip install -e .</pre>
+  <p>This installs the MCP server and all its dependencies (fastmcp, pydantic, etc.). You only need to do this once.</p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">4</span> Verify the Installation</h3>
+  <p>Run the test suite to confirm everything works:</p>
+  <pre>python -m pytest tests/ -v</pre>
+  <p>You should see <strong>81 tests passed</strong> in green. If any test fails, check that Python 3.11+ is installed and try <code>pip install -e .</code> again.</p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">5</span> Open the Project in VS Code</h3>
+  <p>Open VS Code, then click <strong>File → Open Folder</strong> and select the <code>Bob-A-Thon-2026-Spec-Driven-main</code> folder.</p>
+  <p>Bob (the IBM AI assistant) will automatically detect the <code>.bob/mcp.json</code> file in the project and connect to the MCP server.</p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">6</span> Start the MCP Server</h3>
+  <p>The MCP server starts automatically when Bob detects the <code>.bob/mcp.json</code> configuration. If you need to start it manually for testing:</p>
+  <pre>uvx fastmcp run src/universal_spec_mcp/server.py</pre>
+  <p>You should see: <code>Universal Spec Architect running on stdio</code></p>
+</div>
+
+<div class="setup-step">
+  <h3><span class="setup-step-number">7</span> Select the BMad Mode in Bob</h3>
+  <p>In the Bob chat panel (bottom of VS Code), click the mode selector and choose <strong>"BMad Spec Architect"</strong>. Bob will confirm:</p>
+  <div class="dialogue dialogue-agent">
+    <div class="dialogue-label">Bob</div>
+    BMad Spec Architect mode activated. I have loaded four specialist skills: Analyst (Mary), Architect (Winston), PM (John), and Developer (Amelia). Tell me what feature you want to build.
+  </div>
+</div>
+
+<div class="callout">
+  <h4>Troubleshooting</h4>
+  <ul>
+    <li><strong>Bob doesn't show the mode:</strong> Make sure the <code>.bob/</code> folder is in the root of the project you opened.</li>
+    <li><strong>"Module not found" error:</strong> Run <code>pip install -e .</code> again from the project folder.</li>
+    <li><strong>MCP server won't start:</strong> Check that <code>uvx</code> is installed: <code>pip install uv</code></li>
+    <li><strong>Tests fail:</strong> Ensure Python 3.11+ with <code>python --version</code></li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Overview</h2>
+
+<h3>Making Bob Think Before It Codes</h3>
+<p>AI coding assistants are powerful — but by default, they are reactive. When asked to build a feature, they immediately start writing code. In an enterprise environment, this leads to undocumented decisions, missed edge cases, and code that is difficult to maintain or audit. The Universal Spec MCP server solves this by inserting a structured engineering workflow before any code is written. It forces the AI to document requirements, produce a design, and break the work into tasks — ensuring that every line of code is traceable back to an approved specification.</p>
+
+<h3>Workflow Architecture</h3>
+<p>The system operates across four distinct layers:</p>
+<ul>
+  <li><strong>You (The Developer):</strong> You provide the initial idea and answer clarifying questions.</li>
+  <li><strong>BMad Agents:</strong> Four specialized personas (Mary, Winston, John, Amelia) guide the conversation and execute specific phases of the workflow.</li>
+  <li><strong>MCP Server:</strong> A Python backend that exposes 25 tools to the agents, enforcing rules like EARS notation validation and privacy filtering.</li>
+  <li><strong>Project Repository:</strong> The <code>.specs/</code> directory where all requirements, designs, and tasks are saved as versioned Markdown files.</li>
+</ul>
+
+<h3>The Exercise: Password Reset Flow</h3>
+<p>In this exercise, we will build a "User Password Reset Flow" from scratch. We will walk through all four phases, interacting with each agent in turn.</p>
+
+<table>
+  <tr><th>Phase</th><th>Agent</th><th>Role</th><th>MCP Tool Used</th></tr>
+  <tr><td>1. Analysis</td><td>Mary</td><td>Clarify requirements</td><td><code>write_requirements</code></td></tr>
+  <tr><td>2. Architecture</td><td>Winston</td><td>System design &amp; ADRs</td><td><code>write_design</code></td></tr>
+  <tr><td>3. Story Breakdown</td><td>John</td><td>Task definition</td><td><code>write_tasks</code></td></tr>
+  <tr><td>4. Implementation</td><td>Amelia</td><td>Write code</td><td><code>update_task_status</code></td></tr>
+</table>
+
+<div class="callout">
+  <h4>How to Read This Document</h4>
+  <p>The following pages use color-coded boxes to show exactly what happens during the exercise:</p>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">Blue Box</div>This is what you type into the Bob chat panel.</div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Teal Box</div>This is how the BMad agent responds to you.</div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">Purple Box</div><code>This shows the exact JSON payload the agent sends to the MCP server.</code></div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">Orange Box</div>This is a note or explanation about what just happened.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 1 — MARY (ANALYST) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="phase-banner">
+  <div class="badge">PHASE 1</div>
+  <h2>Mary (Analyst)</h2>
+  <p>Requirements Gathering &amp; EARS Notation</p>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 1.1</div>
+  <h3>Activate Mary</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>Activate the bmad-analyst skill. I want to build a user password reset flow.</div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Mary (Analyst)</div>
+    Hello! I'm Mary. I'll help you define the requirements for the password reset flow. Before I write the specification, I need to clarify a few details:<br><br>
+    1. How will the user receive the reset link? (e.g., Email, SMS)<br>
+    2. How long should the reset token be valid?<br>
+    3. Are there any specific security constraints? (e.g., password complexity)<br>
+    4. What happens after a successful reset?
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 1.2</div>
+  <h3>Provide Context</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>
+    1. Email via SendGrid.<br>
+    2. Valid for 15 minutes.<br>
+    3. Must be at least 12 characters with a number and symbol.<br>
+    4. Redirect to the login page with a success message.
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Mary (Analyst)</div>
+    Thank you. Here is the Product Brief:<br><br>
+    <strong>Feature:</strong> Password Reset Flow<br>
+    <strong>Goal:</strong> Allow users to securely reset their passwords via email.<br>
+    <strong>Constraints:</strong> 15-minute token expiry, strict password complexity, SendGrid integration.<br><br>
+    Does this look correct? If so, I will generate the formal EARS requirements.
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 1.3</div>
+  <h3>Approve and Generate Requirements</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>Yes, that's correct. Generate the requirements.</div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — write_requirements</div>
+<pre>{
+  "feature_name": "password-reset-flow",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Reset Request Initiation",
+      "ears_statement": "When a registered user submits their email address on the password reset page, the system shall generate a cryptographically secure token and send a reset link to that email via SendGrid.",
+      "description": "Entry point for the reset flow. The system must validate the email exists before sending.",
+      "acceptance_criteria": ["Email is validated against user database", "Token is 64-character hex string", "SendGrid API returns 202 Accepted", "Link contains token as URL parameter"]
+    },
+    {
+      "id": "REQ-002",
+      "title": "Token Expiry Enforcement",
+      "ears_statement": "While a reset token exists, if more than 15 minutes have elapsed since its creation, the system shall reject the token and display an expiry message.",
+      "description": "Time-based security constraint to limit the window of vulnerability.",
+      "acceptance_criteria": ["Token created_at timestamp is stored", "Validation checks current_time - created_at > 15 min", "Expired tokens return HTTP 410 Gone", "User sees clear expiry message with option to request new link"]
+    },
+    {
+      "id": "REQ-003",
+      "title": "Password Complexity Validation",
+      "ears_statement": "When the user submits a new password, the system shall reject it unless it contains at least 12 characters, including at least one numeric digit and one symbol.",
+      "description": "Enforces organizational password policy at the point of reset.",
+      "acceptance_criteria": ["Minimum 12 characters enforced", "At least one digit [0-9] required", "At least one symbol from !@#$%^&*() required", "Clear error message on validation failure"]
+    },
+    {
+      "id": "REQ-004",
+      "title": "Successful Reset Redirect",
+      "ears_statement": "When the password has been successfully updated, the system shall invalidate the token, redirect the user to the login page, and display a confirmation message.",
+      "description": "Completes the flow and ensures the token cannot be reused.",
+      "acceptance_criteria": ["Token is deleted from database after use", "HTTP 302 redirect to /login", "Flash message: 'Password updated successfully'", "Old password no longer works"]
+    }
+  ]
+}</pre>
+  </div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">What Just Happened</div>
+    Mary called the <code>write_requirements</code> MCP tool. The server validated that each requirement uses proper EARS notation (When/While/If keywords), then saved the file to <code>.specs/password-reset-flow/requirements.md</code>.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 2 — WINSTON (ARCHITECT) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="phase-banner">
+  <div class="badge">PHASE 2</div>
+  <h2>Winston (Architect)</h2>
+  <p>System Design &amp; Architecture Decision Records</p>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 2.1</div>
+  <h3>Activate Winston</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>Switch to the bmad-architect skill. Design the password reset flow.</div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Winston (Architect)</div>
+    I'm Winston. Let me first read the approved requirements to understand what I'm designing for.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — read_spec</div>
+<pre>{
+  "feature_name": "password-reset-flow",
+  "document_type": "requirements"
+}</pre>
+  </div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">What Just Happened</div>
+    Winston called <code>read_spec</code> to load the requirements Mary wrote. This ensures his design is grounded in the approved specification — not guesswork.
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 2.2</div>
+  <h3>Design Produced</h3>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Winston (Architect)</div>
+    Based on the requirements, here is my proposed design:<br><br>
+    <strong>Data Model:</strong> New <code>password_reset_tokens</code> table with columns: id, user_id, token_hash, created_at, used_at.<br><br>
+    <strong>Sequence:</strong> POST /reset-request → validate email → generate token → hash with SHA-256 → store → send via SendGrid → user clicks link → GET /reset/:token → validate expiry → show form → POST /reset/:token → validate password → update user → delete token → redirect.<br><br>
+    <strong>ADR-001: Token Storage Strategy</strong><br>
+    <em>Decision:</em> Store SHA-256 hash of token, not plaintext.<br>
+    <em>Rationale:</em> If the database is compromised, attackers cannot use stolen tokens. The token is only sent in the email — the server never stores the raw value.<br>
+    <em>Alternatives considered:</em> (1) Store plaintext — rejected due to security risk. (2) Encrypt with AES — rejected as unnecessary complexity when hashing is sufficient.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — write_design</div>
+<pre>{
+  "feature_name": "password-reset-flow",
+  "design_sections": [
+    {
+      "title": "Data Model",
+      "content": "New table `password_reset_tokens`:\n- id: UUID primary key\n- user_id: FK to users.id\n- token_hash: VARCHAR(64) — SHA-256 of the raw token\n- created_at: TIMESTAMP\n- used_at: TIMESTAMP nullable"
+    },
+    {
+      "title": "API Endpoints",
+      "content": "POST /api/reset-request — accepts {email}, returns 200 regardless (prevents enumeration)\nGET /reset/:token — validates token, renders password form\nPOST /reset/:token — accepts {password, confirm}, updates user, deletes token"
+    },
+    {
+      "title": "Sequence Diagram",
+      "content": "User → POST /reset-request → Server validates email → Generate 32-byte random token → SHA-256 hash → Store hash in DB → Send raw token via SendGrid → User clicks link → GET /reset/:token → Server hashes URL token → Compare with DB → Check created_at < 15min → Render form → User submits → POST /reset/:token → Validate password complexity → Update users.password_hash → Delete token row → Redirect /login"
+    },
+    {
+      "title": "ADR-001: Token Storage Strategy",
+      "content": "Decision: Store SHA-256 hash of token, not plaintext.\nStatus: Accepted.\nRationale: Database compromise does not expose usable tokens.\nAlternatives: (1) Plaintext — rejected (security). (2) AES encryption — rejected (unnecessary complexity)."
+    }
+  ]
+}</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 3 — JOHN (PM) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="phase-banner">
+  <div class="badge">PHASE 3</div>
+  <h2>John (Product Manager)</h2>
+  <p>Story Breakdown &amp; Task Definition</p>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 3.1</div>
+  <h3>Activate John</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>Switch to the bmad-pm skill. Break the password reset flow into tasks.</div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">John (PM)</div>
+    I'm John. Let me read both the requirements and the design to create a proper task breakdown.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Calls — read_spec (×2)</div>
+<pre>{
+  "feature_name": "password-reset-flow",
+  "document_type": "requirements"
+}
+{
+  "feature_name": "password-reset-flow",
+  "document_type": "design"
+}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 3.2</div>
+  <h3>Task Breakdown</h3>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">John (PM)</div>
+    Here are four tasks, ordered by dependency. Each task is independently testable and maps to specific requirements:<br><br>
+    <strong>TASK-001:</strong> Database migration (no dependencies)<br>
+    <strong>TASK-002:</strong> Reset request endpoint (depends on TASK-001)<br>
+    <strong>TASK-003:</strong> Token validation &amp; password update endpoint (depends on TASK-001)<br>
+    <strong>TASK-004:</strong> Integration test suite (depends on TASK-002, TASK-003)
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — write_tasks</div>
+<pre>{
+  "feature_name": "password-reset-flow",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Create password_reset_tokens migration",
+      "description": "Write the database migration to create the password_reset_tokens table with all columns from the design.",
+      "depends_on": [],
+      "acceptance_criteria": ["Migration creates table with id, user_id, token_hash, created_at, used_at", "Migration is reversible", "Index on token_hash for fast lookup"]
+    },
+    {
+      "id": "TASK-002",
+      "title": "Implement POST /api/reset-request",
+      "description": "Build the endpoint that accepts an email, generates a token, stores the hash, and sends the email via SendGrid.",
+      "depends_on": ["TASK-001"],
+      "acceptance_criteria": ["Returns 200 for both valid and invalid emails", "Generates 32-byte cryptographically random token", "Stores SHA-256 hash in DB", "Sends email via SendGrid with reset link"]
+    },
+    {
+      "id": "TASK-003",
+      "title": "Implement GET/POST /reset/:token",
+      "description": "Build the token validation endpoint and the password update endpoint with complexity validation.",
+      "depends_on": ["TASK-001"],
+      "acceptance_criteria": ["GET validates token hash and checks 15-min expiry", "Returns 410 for expired tokens", "POST validates password complexity (12+ chars, digit, symbol)", "Updates user password hash and deletes token", "Redirects to /login with success message"]
+    },
+    {
+      "id": "TASK-004",
+      "title": "End-to-end integration tests",
+      "description": "Write integration tests covering the full happy path and all error cases.",
+      "depends_on": ["TASK-002", "TASK-003"],
+      "acceptance_criteria": ["Happy path: request → email → click → reset → login works", "Expired token returns 410", "Weak password returns 400 with clear message", "Reused token returns 404", "Non-existent email still returns 200"]
+    }
+  ]
+}</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 4 — AMELIA (DEVELOPER) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="phase-banner">
+  <div class="badge">PHASE 4</div>
+  <h2>Amelia (Developer)</h2>
+  <p>Implementation &amp; Task Tracking</p>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.0</div>
+  <h3>Orientation — Check Project State</h3>
+  <div class="dialogue dialogue-you"><div class="dialogue-label">You</div>Switch to the bmad-dev skill. Implement the password reset flow.</div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    I'm Amelia. Let me first check what specs exist for this project.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — list_specs</div>
+<pre>{}</pre>
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    Found feature: <code>password-reset-flow</code> with requirements, design, and tasks all present. Reading all three now.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Calls — read_spec (×3)</div>
+<pre>{"feature_name": "password-reset-flow", "document_type": "requirements"}
+{"feature_name": "password-reset-flow", "document_type": "design"}
+{"feature_name": "password-reset-flow", "document_type": "tasks"}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.1</div>
+  <h3>Implement TASK-001 — Database Migration</h3>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — run_hook (pre_task)</div>
+<pre>{"feature_name": "password-reset-flow", "hook_type": "pre_task", "task_id": "TASK-001"}</pre>
+  </div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">What Just Happened</div>
+    The pre_task hook checks that all dependencies for TASK-001 are completed. Since TASK-001 has no dependencies, it passes immediately.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — update_task_status</div>
+<pre>{"feature_name": "password-reset-flow", "task_id": "TASK-001", "status": "in_progress"}</pre>
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    Writing the migration file now:
+  </div>
+<pre>-- migrations/001_create_password_reset_tokens.sql
+CREATE TABLE password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    used_at TIMESTAMP
+);
+
+CREATE INDEX idx_token_hash ON password_reset_tokens(token_hash);
+</pre>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — update_task_status</div>
+<pre>{"feature_name": "password-reset-flow", "task_id": "TASK-001", "status": "completed"}</pre>
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — run_hook (post_task)</div>
+<pre>{"feature_name": "password-reset-flow", "hook_type": "post_task", "task_id": "TASK-001", "summary": "Created migration for password_reset_tokens table with SHA-256 token_hash column and index."}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.2</div>
+  <h3>Implement TASK-002 — Reset Request Endpoint</h3>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — run_hook (pre_task)</div>
+<pre>{"feature_name": "password-reset-flow", "hook_type": "pre_task", "task_id": "TASK-002"}</pre>
+  </div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">What Just Happened</div>
+    The pre_task hook checks TASK-002's dependency (TASK-001). Since TASK-001 is completed, it passes.
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — update_task_status</div>
+<pre>{"feature_name": "password-reset-flow", "task_id": "TASK-002", "status": "in_progress"}</pre>
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    Writing the reset request endpoint:
+  </div>
+<pre>import secrets, hashlib
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+@app.post("/api/reset-request")
+async def reset_request(email: str):
+    user = await db.get_user_by_email(email)
+    if not user:
+        return {"message": "If that email exists, a reset link was sent."}
+
+    token = secrets.token_hex(32)  # 64-char hex string
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    await db.insert_reset_token(user.id, token_hash)
+
+    link = f"https://app.example.com/reset/{token}"
+    msg = Mail(to_emails=email, subject="Password Reset",
+               html_content=f'&lt;a href="{link}"&gt;Reset your password&lt;/a&gt;')
+    SendGridAPIClient(SENDGRID_KEY).send(msg)
+
+    return {"message": "If that email exists, a reset link was sent."}
+</pre>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — update_task_status</div>
+<pre>{"feature_name": "password-reset-flow", "task_id": "TASK-002", "status": "completed"}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.3</div>
+  <h3>Implement TASK-003 — Token Validation &amp; Password Update</h3>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Calls</div>
+<pre>run_hook: {"feature_name": "password-reset-flow", "hook_type": "pre_task", "task_id": "TASK-003"}
+update_task_status: {"feature_name": "password-reset-flow", "task_id": "TASK-003", "status": "in_progress"}</pre>
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    Writing the token validation and password update endpoints:
+  </div>
+<pre>import re
+from datetime import datetime, timedelta
+
+@app.get("/reset/{token}")
+async def validate_token(token: str):
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    record = await db.get_reset_token(token_hash)
+
+    if not record:
+        raise HTTPException(404, "Invalid reset link.")
+    if datetime.utcnow() - record.created_at > timedelta(minutes=15):
+        await db.delete_reset_token(token_hash)
+        raise HTTPException(410, "This reset link has expired. Please request a new one.")
+
+    return render_template("reset_form.html", token=token)
+
+@app.post("/reset/{token}")
+async def reset_password(token: str, password: str, confirm: str):
+    if password != confirm:
+        raise HTTPException(400, "Passwords do not match.")
+    if len(password) < 12 or not re.search(r'\d', password) or not re.search(r'[!@#$%^&*()]', password):
+        raise HTTPException(400, "Password must be 12+ chars with a number and symbol.")
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    record = await db.get_reset_token(token_hash)
+    if not record or datetime.utcnow() - record.created_at > timedelta(minutes=15):
+        raise HTTPException(410, "Token expired.")
+
+    await db.update_user_password(record.user_id, hash_password(password))
+    await db.delete_reset_token(token_hash)
+
+    return RedirectResponse("/login?msg=Password+updated+successfully", status_code=302)
+</pre>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Call — update_task_status</div>
+<pre>{"feature_name": "password-reset-flow", "task_id": "TASK-003", "status": "completed"}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.4</div>
+  <h3>Implement TASK-004 — Integration Tests</h3>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Calls</div>
+<pre>run_hook: {"feature_name": "password-reset-flow", "hook_type": "pre_task", "task_id": "TASK-004"}
+update_task_status: {"feature_name": "password-reset-flow", "task_id": "TASK-004", "status": "in_progress"}</pre>
+  </div>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">What Just Happened</div>
+    The pre_task hook checks TASK-004's dependencies (TASK-002 and TASK-003). Both are completed, so it passes.
+  </div>
+  <div class="dialogue dialogue-agent"><div class="dialogue-label">Amelia (Developer)</div>
+    Writing the integration test suite... [tests written]
+  </div>
+  <div class="dialogue dialogue-mcp"><div class="dialogue-label">MCP Tool Calls — completion</div>
+<pre>update_task_status: {"feature_name": "password-reset-flow", "task_id": "TASK-004", "status": "completed"}
+run_hook: {"feature_name": "password-reset-flow", "hook_type": "post_task", "task_id": "TASK-004", "summary": "All 5 integration tests passing: happy path, expired token, weak password, reused token, non-existent email."}</pre>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-label">Step 4.5</div>
+  <h3>Privacy Filter in Action</h3>
+  <div class="dialogue dialogue-note"><div class="dialogue-label">Behind the Scenes</div>
+    Throughout implementation, Amelia's code contained the SendGrid API key <code>SG.abc123...</code>. The MCP server's privacy filter automatically detected and redacted it before writing to <code>.specs/</code>. The stored file shows <code>[REDACTED_SENDGRID_KEY]</code> instead of the real value. This happens transparently — no action required from you.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SUMMARY -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Summary &amp; Reference</h2>
+
+<h3>What Was Produced</h3>
+<table>
+  <tr><th>File</th><th>Created By</th><th>Contains</th></tr>
+  <tr><td><code>.specs/password-reset-flow/requirements.md</code></td><td>Mary</td><td>4 EARS-validated requirements</td></tr>
+  <tr><td><code>.specs/password-reset-flow/design.md</code></td><td>Winston</td><td>Data model, API design, ADR-001</td></tr>
+  <tr><td><code>.specs/password-reset-flow/tasks.md</code></td><td>John</td><td>4 tasks with dependencies</td></tr>
+  <tr><td><code>.specs/password-reset-flow/meta.json</code></td><td>System</td><td>Timestamps, versions, approvals</td></tr>
+</table>
+
+<h3>MCP Tool Reference</h3>
+<table>
+  <tr><th>Tool</th><th>Used By</th><th>Purpose</th></tr>
+  <tr><td><code>initialize_spec</code></td><td>Any</td><td>Create a new feature spec directory</td></tr>
+  <tr><td><code>write_requirements</code></td><td>Mary</td><td>Write EARS-validated requirements</td></tr>
+  <tr><td><code>write_design</code></td><td>Winston</td><td>Write design document with ADRs</td></tr>
+  <tr><td><code>write_tasks</code></td><td>John</td><td>Write task breakdown with dependencies</td></tr>
+  <tr><td><code>read_spec</code></td><td>All</td><td>Read any spec document for a feature</td></tr>
+  <tr><td><code>list_specs</code></td><td>All</td><td>List all features in the project</td></tr>
+  <tr><td><code>update_task_status</code></td><td>Amelia</td><td>Mark tasks as todo/in_progress/completed/blocked</td></tr>
+  <tr><td><code>run_hook</code></td><td>Amelia</td><td>Pre/post task dependency checks and memory storage</td></tr>
+  <tr><td><code>add_directive</code></td><td>Any</td><td>Add project-wide rules (e.g., "always use TypeScript")</td></tr>
+  <tr><td><code>remove_directive</code></td><td>Any</td><td>Remove a directive by ID</td></tr>
+  <tr><td><code>list_directives</code></td><td>Any</td><td>View all active project directives</td></tr>
+  <tr><td><code>store_memory</code></td><td>Any</td><td>Save a decision or learning for future reference</td></tr>
+  <tr><td><code>get_memories_by_feature</code></td><td>Any</td><td>Retrieve memories relevant to a feature</td></tr>
+  <tr><td><code>health_check</code></td><td>Any</td><td>Verify spec integrity and EARS compliance</td></tr>
+  <tr><td><code>search_specs</code></td><td>Any</td><td>Full-text search across all specifications</td></tr>
+</table>
+
+<h3>Task Status Markers</h3>
+<table>
+  <tr><th>Marker</th><th>Status</th><th>Meaning</th></tr>
+  <tr><td><code>[ ]</code></td><td>todo</td><td>Not yet started</td></tr>
+  <tr><td><code>[~]</code></td><td>in_progress</td><td>Currently being worked on</td></tr>
+  <tr><td><code>[x]</code></td><td>completed</td><td>Done and verified</td></tr>
+  <tr><td><code>[!]</code></td><td>blocked</td><td>Cannot proceed — dependency issue</td></tr>
+</table>
+
+<h3>If You Get Lost</h3>
+<div class="callout">
+  <h4>Use bmad-help at any time</h4>
+  <p>If you are unsure what to do next, type: <strong>"bmad-help — what should I do next?"</strong></p>
+  <p>The bmad-help skill will call <code>list_specs()</code> to see what features exist, then <code>read_spec()</code> on each document type to check what has been written. It returns an orientation report like:</p>
+  <p><em>"Feature password-reset-flow: requirements ✓, design ✓, tasks ✓, implementation 2/4 complete. → Next: activate bmad-dev and continue with TASK-003."</em></p>
+  <p>Follow the recommendation exactly. Do not skip phases or documents that are missing — the MCP server will reject the attempt with a phase gate error.</p>
+</div>
+
+<h3>Key Principles</h3>
+<ul>
+  <li><strong>No code without a spec.</strong> The MCP server enforces this structurally — you cannot skip phases.</li>
+  <li><strong>Every decision is documented.</strong> ADRs, EARS requirements, and task acceptance criteria create a full audit trail.</li>
+  <li><strong>Privacy is automatic.</strong> API keys and secrets are redacted before they reach disk.</li>
+  <li><strong>Memory persists.</strong> Decisions stored via <code>store_memory</code> are available in future sessions.</li>
+</ul>
+
+</body>
+</html>
