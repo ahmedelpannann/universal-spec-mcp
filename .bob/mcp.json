@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "universal-spec-mcp": {
+      "command": "uvx",
+      "args": [
+        "fastmcp",
+        "run",
+        "src/universal_spec_mcp/server.py"
+      ],
+      "description": "Universal Spec MCP Server - Enforces spec-driven development workflow"
+    }
+  }
+}
+
+// Made with Bob
