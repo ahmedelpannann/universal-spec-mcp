@@ -1426,7 +1426,7 @@ def diff_spec(feature_name: str, spec_type: str, version1: str, version2: str) -
         
         # Helper to get file path and label
         def get_version_file(version: str) -> tuple[Path, str]:
-            if version.lower() == "current":
+            if str(version).lower() == "current":
                 file_path = feature_dir / f"{spec_type}.md"
                 label = f"{spec_type}.md (current)"
             else:

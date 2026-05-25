@@ -770,7 +770,7 @@ class TestWave2Features:
         )
         
         # Get diff between v1 and v2
-        result = diff_spec("diff-test", "requirements", 1, 2)
+        result = diff_spec("diff-test", "requirements", "1", "2")
         
         # Check diff format
         assert "```diff" in result
@@ -805,7 +805,7 @@ class TestWave2Features:
         )
         
         # Now v1 exists, but v99 doesn't
-        result = diff_spec("missing-version", "requirements", 1, 99)
+        result = diff_spec("missing-version", "requirements", "1", "99")
         assert "not found" in result
     
     def test_check_coverage_all_requirements_traced(self, temp_specs_dir):
@@ -949,7 +949,227 @@ class TestWave2Features:
         assert "No requirement linkage found" in result
 
 
+
+class TestWave3Features:
+    """Tests for run_hook, get_feature_summary, feature graph, health_check,
+    and other Wave 2-3 tools that previously had no test coverage."""
+
+    def _setup_full_feature(self, srv, feature_name: str = "test") -> None:
+        """Helper: create a feature that has passed all three phases."""
+        srv.initialize_spec(feature_name, "desc")
+        srv.write_requirements(
+            feature_name, "desc",
+            [{"id": "REQ-001", "text": "THE system SHALL work", "priority": "must"}]
+        )
+        srv.approve_phase(feature_name, "requirements", "ahmed")
+        srv.write_design(
+            feature_name,
+            "Architecture with REQ-001 at its core",
+            [{"id": "ADR-001", "title": "T", "context": "REQ-001",
+              "decision": "D", "consequences": "Q"}]
+        )
+        srv.approve_phase(feature_name, "design", "ahmed")
+        srv.write_tasks(
+            feature_name,
+            [
+                {"id": "TASK-001", "title": "Implement auth",
+                 "description": "REQ-001 referenced here", "estimated_hours": 2.0},
+                {"id": "TASK-002", "title": "Write tests",
+                 "description": "REQ-001 coverage",
+                 "depends_on": ["TASK-001"], "estimated_hours": 1.0},
+            ]
+        )
+        srv.approve_phase(feature_name, "tasks", "ahmed")
+
+    # ------------------------------------------------------------------ run_hook
+
+    def test_pre_task_hook_blocks_incomplete_dependency(self, temp_specs_dir):
+        """run_hook pre_task must block when a dependency task is not completed."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result = srv.run_hook("pre_task", "test", "TASK-002")
+        assert "\u2717" in result
+        assert "TASK-001" in result
+
+    def test_pre_task_hook_passes_when_deps_complete(self, temp_specs_dir):
+        """run_hook pre_task must pass when all dependency tasks are completed."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        srv.update_task_status("test", "TASK-001", "completed")
+        result = srv.run_hook("pre_task", "test", "TASK-002")
+        assert "\u2717" not in result
+        assert "Ready" in result or "Dependency Check" in result
+
+    def test_pre_task_hook_with_directives(self, temp_specs_dir, temp_directive_store,
+                                            monkeypatch):
+        """run_hook pre_task must render directives without raising KeyError."""
+        import universal_spec_mcp.server as srv
+        monkeypatch.setattr(srv, "directive_store", temp_directive_store)
+        temp_directive_store.add_directive("Always write tests", "testing")
+        self._setup_full_feature(srv)
+        result = srv.run_hook("pre_task", "test", "TASK-001")
+        assert "Always write tests" in result
+        assert "\u2717" not in result
+
+    def test_post_task_hook_requires_summary(self, temp_specs_dir):
+        """run_hook post_task must return an error when summary is empty."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result = srv.run_hook("post_task", "test", "TASK-001", "")
+        assert "\u2717" in result
+
+    def test_post_task_hook_stores_memory(self, temp_specs_dir, temp_memory_store,
+                                          monkeypatch):
+        """run_hook post_task must store a memory entry for the completed task."""
+        import universal_spec_mcp.server as srv
+        monkeypatch.setattr(srv, "memory_store", temp_memory_store)
+        self._setup_full_feature(srv)
+        result = srv.run_hook(
+            "post_task", "test", "TASK-001",
+            "Implemented login endpoint using JWT"
+        )
+        assert "\u2713" in result
+        memories = temp_memory_store.get_memories_by_feature("test")
+        assert any("TASK-001" in m["content"] for m in memories)
+
+    # -------------------------------------------------------- get_feature_summary
+
+    def test_get_feature_summary_progress(self, temp_specs_dir):
+        """get_feature_summary must report correct task count and hours after completion."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        srv.update_task_status("test", "TASK-001", "completed")
+        result = srv.get_feature_summary("test")
+        assert "1 / 2" in result
+        assert "2.0h" in result
+
+    def test_get_feature_summary_shows_blocked_task(self, temp_specs_dir):
+        """get_feature_summary must list TASK-002 as blocked when TASK-001 is pending."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result = srv.get_feature_summary("test")
+        assert "TASK-002" in result or "blocked" in result.lower()
+
+    def test_get_feature_summary_approval_timestamp(self, temp_specs_dir):
+        """get_feature_summary approval_info must reflect the timestamp written by approve_phase."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        phase = srv._get_phase("test")
+        assert "approvals" in phase
+        assert "tasks" in phase["approvals"]
+
+    # --------------------------------------------------- add_feature_dependency
+
+    def test_add_feature_dependency_persists(self, temp_specs_dir):
+        """add_feature_dependency must write the edge to feature_graph.json."""
+        import universal_spec_mcp.server as srv, json
+        srv.initialize_spec("feature-a", "A")
+        srv.initialize_spec("feature-b", "B")
+        result = srv.add_feature_dependency("feature-b", "feature-a", "B needs A")
+        assert "\u2713" in result
+        graph_file = temp_specs_dir / ".system" / "feature_graph.json"
+        assert graph_file.exists()
+        data = json.loads(graph_file.read_text())
+        assert data[0]["feature"] == "feature-b"
+        assert data[0]["depends_on"] == "feature-a"
+
+    def test_add_feature_dependency_no_duplicate(self, temp_specs_dir):
+        """add_feature_dependency must reject a duplicate edge."""
+        import universal_spec_mcp.server as srv
+        srv.initialize_spec("feature-a", "A")
+        srv.initialize_spec("feature-b", "B")
+        srv.add_feature_dependency("feature-b", "feature-a")
+        result = srv.add_feature_dependency("feature-b", "feature-a")
+        assert "already exists" in result
+
+    def test_approve_phase_blocks_on_incomplete_feature_dep(self, temp_specs_dir):
+        """approve_phase(tasks) must block when a cross-feature dependency is not ready."""
+        import universal_spec_mcp.server as srv
+        srv.initialize_spec("feature-a", "A")
+        srv.write_requirements(
+            "feature-a", "A",
+            [{"id": "REQ-001", "text": "THE system SHALL work", "priority": "must"}]
+        )
+        srv.approve_phase("feature-a", "requirements", "ahmed")
+        srv.initialize_spec("feature-b", "B")
+        srv.write_requirements(
+            "feature-b", "B",
+            [{"id": "REQ-001", "text": "THE system SHALL scale", "priority": "must"}]
+        )
+        srv.approve_phase("feature-b", "requirements", "ahmed")
+        srv.write_design(
+            "feature-b", "arch REQ-001",
+            [{"id": "ADR-001", "title": "T", "context": "REQ-001",
+              "decision": "D", "consequences": "Q"}]
+        )
+        srv.approve_phase("feature-b", "design", "ahmed")
+        srv.write_tasks(
+            "feature-b",
+            [{"id": "TASK-001", "title": "A",
+              "description": "REQ-001", "estimated_hours": 1.0}]
+        )
+        srv.add_feature_dependency("feature-b", "feature-a")
+        result = srv.approve_phase("feature-b", "tasks")
+        assert "\u2717" in result
+        assert "feature-a" in result
+
+    # -------------------------------------------------------------- health_check
+
+    def test_health_check_single_healthy_feature(self, temp_specs_dir):
+        """health_check must return healthy for a fully traced feature."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result = srv.health_check("test")
+        assert "\U0001f7e2" in result or "Healthy" in result
+
+    def test_health_check_all_features_returns_summary(self, temp_specs_dir):
+        """health_check() with no argument must check all features and show an overall line."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result = srv.health_check()
+        assert "Overall" in result
+        assert "test" in result
+
+    def test_health_check_detects_ears_violation(self, temp_specs_dir):
+        """health_check must flag a error when a requirements file has an EARS violation."""
+        import universal_spec_mcp.server as srv
+        srv.initialize_spec("bad", "desc")
+        (temp_specs_dir / "bad" / "requirements.md").write_text(
+            "# Requirements: bad\n\n### REQ-001 (must)\n\nUsers can log in\n"
+        )
+        result = srv.health_check("bad")
+        assert "\U0001f534" in result or "Error" in result
+
+    # --------------------------------------------------------- search_specs paging
+
+    def test_search_specs_pagination_offset(self, temp_specs_dir):
+        """search_specs must honour the offset parameter for pagination."""
+        import universal_spec_mcp.server as srv
+        self._setup_full_feature(srv)
+        result_p1 = srv.search_specs("THE", limit=1, offset=0)
+        result_p2 = srv.search_specs("THE", limit=1, offset=1)
+        assert "Showing 1" in result_p1
+        assert result_p1 != result_p2 or "offset=1" in result_p1
+
+    # --------------------------------------------------------- diff_spec 'current'
+
+    def test_diff_spec_current_vs_backup(self, temp_specs_dir):
+        """diff_spec must accept 'current' as a version to compare to a backup."""
+        from universal_spec_mcp.server import initialize_spec, write_requirements, diff_spec
+        initialize_spec("diff-current")
+        write_requirements(
+            "diff-current", "Test",
+            [{"id": "REQ-001", "text": "THE system SHALL work", "priority": "must"}]
+        )
+        write_requirements(
+            "diff-current", "Test",
+            [{"id": "REQ-001", "text": "THE system SHALL scale", "priority": "must"}]
+        )
+        result = diff_spec("diff-current", "requirements", "current", "1")
+        assert "```diff" in result
+        assert "current" in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
-# Made with Bob
+# Made with Bob Bob
